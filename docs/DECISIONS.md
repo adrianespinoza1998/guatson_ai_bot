@@ -8,6 +8,14 @@ Registro de decisiones tomadas por ambigüedad o contradicción en `SPEC.md`, en
 - `uv` no estaba instalado en la máquina de desarrollo; se instaló localmente (`astral.sh/uv/install.sh`) para poder generar `uv.lock` real y correr `ruff`/`mypy`/`pytest` antes de entregar. Esto es una herramienta de desarrollo, no una dependencia del proyecto.
 - Python 3.12 tampoco estaba instalado; se resolvió vía `uv python install 3.12`, que `uv` gestiona de forma aislada (no toca el Python del sistema).
 
+## Búsqueda con acentos (`search_tasks`)
+
+- El criterio de aceptación de los tests pide FTS que funcione "con y sin acentos" (ej. `renovación` debe encontrar lo mismo que `renovacion`). La función `unaccent()` de Postgres es `STABLE`, no `IMMUTABLE`, así que no se puede usar directamente dentro de una columna `GENERATED`. Se sigue el patrón documentado en el wiki de PostgreSQL: una función wrapper `immutable_unaccent(text)` marcada `IMMUTABLE` que llama a `unaccent('unaccent', $1)` por dentro. La columna `tasks.search` y el lado de la consulta en `search_tasks()` pasan ambos por esa misma función, así que quedan normalizados de forma consistente.
+
+## Consistencia del turno del agente ante fallos
+
+- La spec exige que "un `tool_use` sin su `tool_result` rompe la siguiente llamada a la API" nunca ocurra, incluso si algo falla a mitad de un turno. En vez de intentar reparar el estado manualmente, todo `run_turn()` corre dentro de una única transacción de `session_scope()`: cada turno de assistant/tool_result se hace `flush()` (visible dentro de la misma transacción) pero nada se hace `commit()` hasta que el turno completo termina con éxito. Si algo inesperado falla (error de red con la API, un bug en un tool handler), la excepción se propaga, la transacción hace rollback completo, y la conversación queda exactamente como estaba antes de que el turno empezara — nunca con un `tool_use` guardado sin su `tool_result`. El mensaje original del usuario no se pierde porque se inserta y confirma en una transacción aparte, en el propio handler del webhook, antes de encolar el procesamiento.
+
 ## `queue.py`
 
 - La spec pide una interfaz `enqueue()` que hoy usa `BackgroundTasks` de FastAPI y que "debe permitir cambiarse por una cola en Postgres sin tocar el resto". `BackgroundTasks` es un objeto por-request (lo crea FastAPI por cada request), así que se modela como un `Queue` (Protocol) con un método `enqueue(coro)`, y una implementación `BackgroundTasksQueue` que se construye en el handler del webhook envolviendo el `BackgroundTasks` inyectado por FastAPI en esa request. Una futura cola durable expondría el mismo método `enqueue()` pero insertando una fila en Postgres en vez de agendar una tarea en memoria; el call-site (`webhook.py`) no cambia.

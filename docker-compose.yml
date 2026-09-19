@@ -15,12 +15,28 @@ services:
       timeout: 5s
       retries: 10
 
+  # One-shot: runs the migrations and exits. `app` and `bot-polling` both wait on it
+  # (service_completed_successfully) instead of each running `alembic upgrade head`
+  # themselves — doing that concurrently races on the very first migration (both try
+  # to CREATE TABLE alembic_version) when the `polling` profile brings both up at once.
+  migrate:
+    build: .
+    command: alembic upgrade head
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://guatson:guatson@db:5432/guatson
+    volumes:
+      - ./migrations:/app/migrations
+    depends_on:
+      db:
+        condition: service_healthy
+
   # Webhook mode: what runs in staging/production. Locally it just serves
   # /webhook/telegram and /health*; nothing calls it unless you point a real webhook
   # at it (e.g. via a tunnel), so it coexists fine with `bot-polling` below.
   app:
     build: .
-    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://guatson:guatson@db:5432/guatson
@@ -30,15 +46,15 @@ services:
       - ./src:/app/src
       - ./migrations:/app/migrations
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
   # Development mode: long-polling, no public URL required. Start with
   # `docker compose --profile polling up`.
   bot-polling:
     build: .
     profiles: ["polling"]
-    command: sh -c "alembic upgrade head && python scripts/run_polling.py"
+    command: python scripts/run_polling.py
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://guatson:guatson@db:5432/guatson
@@ -47,8 +63,8 @@ services:
       - ./migrations:/app/migrations
       - ./scripts:/app/scripts
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   db_data:

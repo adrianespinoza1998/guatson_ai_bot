@@ -30,6 +30,14 @@ def upgrade() -> None:
         "RETURNS text AS $$ SELECT unaccent('unaccent', $1) $$ "
         "LANGUAGE sql IMMUTABLE PARALLEL SAFE"
     )
+    # array_to_string() (and the implicit text[]::text cast) is STABLE too — its
+    # output function is conservatively marked that way — so tags needs the same
+    # wrapper treatment to be usable in the generated column below.
+    op.execute(
+        "CREATE OR REPLACE FUNCTION immutable_array_to_string(text[], text) "
+        "RETURNS text AS $$ SELECT array_to_string($1, $2) $$ "
+        "LANGUAGE sql IMMUTABLE PARALLEL SAFE"
+    )
 
     op.create_table(
         "messages",
@@ -76,7 +84,7 @@ def upgrade() -> None:
             sa.Computed(
                 "to_tsvector('spanish', immutable_unaccent("
                 "coalesce(title, '') || ' ' || coalesce(description, '') || ' ' || "
-                "coalesce(array_to_string(tags, ' '), '')))",
+                "coalesce(immutable_array_to_string(tags, ' '), '')))",
                 persisted=True,
             ),
             nullable=True,
@@ -148,5 +156,6 @@ def downgrade() -> None:
     op.drop_index("ix_messages_chat_id", table_name="messages")
     op.drop_table("messages")
 
+    op.execute("DROP FUNCTION IF EXISTS immutable_array_to_string(text[], text)")
     op.execute("DROP FUNCTION IF EXISTS immutable_unaccent(text)")
     op.execute("DROP EXTENSION IF EXISTS unaccent")
