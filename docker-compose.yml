@@ -2,15 +2,15 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_USER: guatson
-      POSTGRES_PASSWORD: guatson
-      POSTGRES_DB: guatson
+      POSTGRES_USER: ${POSTGRES_USER:-guatson}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (see .env.example)}
+      POSTGRES_DB: ${POSTGRES_DB:-guatson}
     ports:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U guatson -d guatson"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-guatson} -d ${POSTGRES_DB:-guatson}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -24,7 +24,7 @@ services:
     command: alembic upgrade head
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://guatson:guatson@db:5432/guatson
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-guatson}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (see .env.example)}@db:5432/${POSTGRES_DB:-guatson}
     volumes:
       - ./migrations:/app/migrations
     depends_on:
@@ -39,7 +39,7 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://guatson:guatson@db:5432/guatson
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-guatson}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (see .env.example)}@db:5432/${POSTGRES_DB:-guatson}
     ports:
       - "8080:8080"
     volumes:
@@ -57,7 +57,7 @@ services:
     command: python scripts/run_polling.py
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://guatson:guatson@db:5432/guatson
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-guatson}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (see .env.example)}@db:5432/${POSTGRES_DB:-guatson}
     volumes:
       - ./src:/app/src
       - ./migrations:/app/migrations

@@ -2,6 +2,10 @@
 
 Registro de decisiones tomadas por ambigüedad o contradicción en `SPEC.md`, en orden cronológico. Regla general aplicada: ante la duda, la opción más simple que cumple el criterio de aceptación.
 
+## Contraseña de Postgres en `docker-compose.yml`
+
+- La versión inicial hardcodeaba `POSTGRES_USER`/`PASSWORD`/`DB` como `guatson`/`guatson`/`guatson` directamente en `docker-compose.yml`, y GitGuardian lo marcó como secreto expuesto en el repo público (aunque era solo la contraseña de un Postgres local, nunca expuesto a internet). Se corrigió reemplazándolo por interpolación de variables (`${POSTGRES_PASSWORD:?...}`, que falla explícitamente si no está seteada) leídas del `.env` de la raíz del proyecto — que Docker Compose carga automáticamente para sustituir `${...}` dentro del propio archivo compose, aparte y además de `env_file:` (que inyecta variables al entorno del contenedor). `.env.example` ahora trae un placeholder `CHANGE_ME_STRONG_PASSWORD` en vez de un valor usable. El valor viejo sigue en el historial de git; ver el mensaje del commit que aplica este cambio para las opciones sobre cómo (o si vale la pena) purgarlo.
+
 ## Empaquetado y gestor de dependencias
 
 - Se usa `hatchling` como backend de build con layout `src/`, paquete `app` (`src/app`). El comando de arranque es `uvicorn app.main:app`, tal como pide la spec.

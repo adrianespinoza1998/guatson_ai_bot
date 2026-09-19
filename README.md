@@ -39,6 +39,8 @@ cp .env.example .env
 # Completa .env: TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_USER_IDS, ANTHROPIC_API_KEY, etc.
 # TELEGRAM_WEBHOOK_SECRET y PUBLIC_BASE_URL no se usan en modo polling, pero deben
 # tener algún valor porque la configuración los exige.
+# Cambia también POSTGRES_PASSWORD por una contraseña propia (no el valor de ejemplo) —
+# .env nunca se sube al repo, así que esa contraseña se queda solo en tu máquina.
 
 docker compose --profile polling up --build
 ```
