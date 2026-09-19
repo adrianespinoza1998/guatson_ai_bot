@@ -51,9 +51,7 @@ async def search_tasks(
         # `search` folds accents via immutable_unaccent (see migrations/versions/
         # 0001_initial.py); the query side must go through the same function so
         # "renovacion" and "renovación" match the same rows.
-        ts_query = func.websearch_to_tsquery(
-            "spanish", func.immutable_unaccent(query)
-        )
+        ts_query = func.websearch_to_tsquery("spanish", func.immutable_unaccent(query))
         stmt = stmt.where(Task.search.op("@@")(ts_query))
         stmt = stmt.order_by(func.ts_rank(Task.search, ts_query).desc(), Task.id.desc())
     else:
@@ -96,6 +94,8 @@ async def update_task(
     if status is not None:
         task.status = status
         task.completed_at = dt.datetime.now(dt.UTC) if status == "done" else None
+
+    task.updated_at = dt.datetime.now(dt.UTC)
 
     await session.flush()
     return task

@@ -8,6 +8,7 @@ import json
 from aiogram import Bot
 from aiogram.types import Update
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, Response
+from pydantic import ValidationError
 
 from app.config import Settings
 from app.llm.client import ClaudeClient
@@ -51,7 +52,12 @@ async def telegram_webhook(
     except json.JSONDecodeError as exc:
         raise HTTPException(status_code=400, detail="invalid JSON") from exc
 
-    update = Update.model_validate(data, context={"bot": bot})
+    try:
+        update = Update.model_validate(data, context={"bot": bot})
+    except ValidationError as exc:
+        # Well-formed JSON that isn't a Telegram Update — not something Telegram
+        # itself should ever send, but a malformed request shouldn't 500.
+        raise HTTPException(status_code=400, detail="invalid Telegram update") from exc
     if update.message is None:
         # allowed_updates=["message"] means this shouldn't happen in practice; ignore
         # defensively rather than error, so an unexpected update type never breaks

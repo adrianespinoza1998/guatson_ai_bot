@@ -70,15 +70,18 @@ class Task(Base):
         Computed(
             "to_tsvector('spanish', immutable_unaccent("
             "coalesce(title, '') || ' ' || coalesce(description, '') || ' ' || "
-            "coalesce(array_to_string(tags, ' '), '')))",
+            "coalesce(immutable_array_to_string(tags, ' '), '')))",
             persisted=True,
         ),
     )
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    # No ORM-level `onupdate`: that expires the attribute after every UPDATE and the
+    # next read triggers a sync lazy-load, which raises MissingGreenlet under the
+    # async engine. repositories.tasks.update_task() sets this explicitly instead.
     updated_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     completed_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
 

@@ -93,9 +93,9 @@ async def process_message(
     a mid-turn failure rolls the DB transaction back, so it never leaves a `tool_use`
     without its `tool_result` (see app.llm.agent).
     """
-    await send_typing(bot, chat_id)
-
     try:
+        await send_typing(bot, chat_id)
+
         async with session_scope() as session:
             result = await run_turn(
                 session=session,
@@ -106,20 +106,25 @@ async def process_message(
             )
             reply_text = _reply_text_for(result)
             saved_artifacts = result.saved_artifacts
-    except Exception:
-        logger.exception("agent_turn_failed", chat_id=chat_id)
-        await send_text(bot, chat_id, PROCESSING_ERROR_REPLY)
-        return
 
-    await send_text(bot, chat_id, reply_text)
-    for artifact in saved_artifacts:
-        await send_artifact_document(
-            bot,
-            chat_id,
-            name=artifact["name"],
-            language=artifact["language"],
-            code=artifact["code"],
-        )
+        await send_text(bot, chat_id, reply_text)
+        for artifact in saved_artifacts:
+            await send_artifact_document(
+                bot,
+                chat_id,
+                name=artifact["name"],
+                language=artifact["language"],
+                code=artifact["code"],
+            )
+    except Exception:
+        # Covers a failed agent turn as well as a Telegram-side send failure — either
+        # way, log it and try once to tell the user. If even that fails (e.g. the bot
+        # itself can't reach Telegram), there's nothing more to do here.
+        logger.exception("process_message_failed", chat_id=chat_id)
+        try:
+            await send_text(bot, chat_id, PROCESSING_ERROR_REPLY)
+        except Exception:
+            logger.exception("error_reply_failed", chat_id=chat_id)
 
 
 async def handle_incoming(

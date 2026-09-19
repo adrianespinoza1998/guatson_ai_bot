@@ -27,12 +27,13 @@ async def main() -> None:
     dispatcher = Dispatcher()
     dispatcher.include_router(router)
 
-    # Polling and a registered webhook are mutually exclusive for the same bot token;
-    # clear any previously-set webhook (e.g. from staging/production) before polling.
-    await bot.delete_webhook(drop_pending_updates=False)
-
-    logger.info("polling_started")
     try:
+        # Polling and a registered webhook are mutually exclusive for the same bot
+        # token; clear any previously-set webhook (e.g. from staging/production)
+        # before polling.
+        await bot.delete_webhook(drop_pending_updates=False)
+
+        logger.info("polling_started")
         await dispatcher.start_polling(bot, settings=settings, client=claude_client)
     finally:
         await claude_client.aclose()

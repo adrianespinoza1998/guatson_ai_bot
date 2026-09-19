@@ -55,5 +55,10 @@ ignore_missing_imports = false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# Our app uses a process-wide singleton DB engine (app.db.get_engine()); tests need to
+# share one event loop for the whole session so that singleton isn't bound to a loop
+# that a later test's default per-function loop no longer matches.
+asyncio_default_test_loop_scope = "session"
+asyncio_default_fixture_loop_scope = "session"
 testpaths = ["tests"]
 pythonpath = ["src"]
