@@ -2,6 +2,11 @@
 
 Registro de decisiones tomadas por ambigüedad o contradicción en `SPEC.md`, en orden cronológico. Regla general aplicada: ante la duda, la opción más simple que cumple el criterio de aceptación.
 
+## Transcripción de notas de voz (OpenAI)
+
+- Implementada según `docs/specs/audio-transcription.md`. La única desviación notable del resto de `Settings` (donde todo es obligatorio): `openai_api_key` es `str | None = None`. Es deliberado — a diferencia de `anthropic_api_key`/`telegram_bot_token`/etc., sin los cuales el bot entero no tiene sentido, `OPENAI_API_KEY` protege una sola feature opcional; exigirla forzaría a cualquier instalación que no quiera transcripción de voz a configurar una key que no va a usar.
+- Toda la validación (duración, tamaño) y la descarga+transcripción ocurren de forma síncrona dentro de `ingest_incoming`, **antes** de responder `200` al webhook — a diferencia del loop del agente, que sí se difiere vía `queue.enqueue()`. Se acepta la latencia extra (la transcripción de un audio corto toma unos segundos) a cambio de una invariante simple: nunca se inserta una fila en `messages` a menos que ya tengamos el contenido final, así que la idempotencia por `telegram_update_id` sigue funcionando igual que para texto, sin necesidad de una fila "placeholder".
+
 ## Contraseña de Postgres en `docker-compose.yml`
 
 - La versión inicial hardcodeaba `POSTGRES_USER`/`PASSWORD`/`DB` como `guatson`/`guatson`/`guatson` directamente en `docker-compose.yml`, y GitGuardian lo marcó como secreto expuesto en el repo público (aunque era solo la contraseña de un Postgres local, nunca expuesto a internet). Se corrigió reemplazándolo por interpolación de variables (`${POSTGRES_PASSWORD:?...}`, que falla explícitamente si no está seteada) leídas del `.env` de la raíz del proyecto — que Docker Compose carga automáticamente para sustituir `${...}` dentro del propio archivo compose, aparte y además de `env_file:` (que inyecta variables al entorno del contenedor). `.env.example` ahora trae un placeholder `CHANGE_ME_STRONG_PASSWORD` en vez de un valor usable. El valor viejo sigue en el historial de git; ver el mensaje del commit que aplica este cambio para las opciones sobre cómo (o si vale la pena) purgarlo.

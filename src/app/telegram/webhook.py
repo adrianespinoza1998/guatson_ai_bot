@@ -14,6 +14,7 @@ from app.config import Settings
 from app.llm.client import ClaudeClient
 from app.queue import BackgroundTasksQueue
 from app.telegram.handlers import handle_incoming
+from app.transcription import Transcriber
 
 router = APIRouter()
 
@@ -26,6 +27,10 @@ def get_claude_client(request: Request) -> ClaudeClient:
     return request.app.state.claude_client  # type: ignore[no-any-return]
 
 
+def get_transcriber(request: Request) -> Transcriber | None:
+    return request.app.state.transcriber  # type: ignore[no-any-return]
+
+
 def get_app_settings(request: Request) -> Settings:
     return request.app.state.settings  # type: ignore[no-any-return]
 
@@ -36,6 +41,7 @@ async def telegram_webhook(
     background_tasks: BackgroundTasks,
     bot: Bot = Depends(get_bot),
     client: ClaudeClient = Depends(get_claude_client),
+    transcriber: Transcriber | None = Depends(get_transcriber),
     settings: Settings = Depends(get_app_settings),
     x_telegram_bot_api_secret_token: str | None = Header(default=None),
 ) -> Response:
@@ -73,6 +79,7 @@ async def telegram_webhook(
         telegram_update_id=update.update_id,
         settings=settings,
         client=client,
+        transcriber=transcriber,
         queue=BackgroundTasksQueue(background_tasks),
     )
     return Response(status_code=200)

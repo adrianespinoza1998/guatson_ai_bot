@@ -14,6 +14,7 @@ from app.config import get_settings
 from app.llm.client import ClaudeClient
 from app.logging import configure_logging, get_logger
 from app.telegram.handlers import router
+from app.transcription import create_transcriber
 
 logger = get_logger(__name__)
 
@@ -24,6 +25,7 @@ async def main() -> None:
 
     bot = Bot(token=settings.telegram_bot_token)
     claude_client = ClaudeClient(settings)
+    transcriber = create_transcriber(settings)
     dispatcher = Dispatcher()
     dispatcher.include_router(router)
 
@@ -33,10 +35,14 @@ async def main() -> None:
         # before polling.
         await bot.delete_webhook(drop_pending_updates=False)
 
-        logger.info("polling_started")
-        await dispatcher.start_polling(bot, settings=settings, client=claude_client)
+        logger.info("polling_started", voice_enabled=transcriber is not None)
+        await dispatcher.start_polling(
+            bot, settings=settings, client=claude_client, transcriber=transcriber
+        )
     finally:
         await claude_client.aclose()
+        if transcriber is not None:
+            await transcriber.aclose()
         await bot.session.close()
 
 

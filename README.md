@@ -107,8 +107,13 @@ dejar este bot corriendo sin supervisión: <https://console.anthropic.com/settin
 Un bug en el loop del agente (por ejemplo, `AGENT_MAX_ITERATIONS` mal configurado) no
 debería poder generar una factura sorpresa.
 
+Si configuras `OPENAI_API_KEY` para transcribir notas de voz (ver
+[`docs/specs/audio-transcription.md`](docs/specs/audio-transcription.md)), haz lo mismo
+en la cuenta de OpenAI: <https://platform.openai.com/settings/organization/limits>.
+
 ## Fuera de alcance (MVP)
 
 Ver `SPEC.md` secciones 1 y 14: no se ejecuta el código generado, no hay multiusuario
-real, no hay búsqueda semántica, no se soportan mensajes de voz/imagen/documento, y no
-hay panel web.
+real, no hay búsqueda semántica, no se soportan imágenes ni documentos entrantes, y no
+hay panel web. Las notas de voz sí se soportan (transcripción vía OpenAI, opcional —
+ver `docs/specs/audio-transcription.md`).

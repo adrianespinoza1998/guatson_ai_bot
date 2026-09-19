@@ -15,6 +15,7 @@ from app.db import dispose_engine, get_engine
 from app.llm.client import ClaudeClient
 from app.logging import configure_logging, get_logger
 from app.telegram.webhook import router as webhook_router
+from app.transcription import create_transcriber
 
 logger = get_logger(__name__)
 
@@ -26,17 +27,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     bot = Bot(token=settings.telegram_bot_token)
     claude_client = ClaudeClient(settings)
+    transcriber = create_transcriber(settings)
 
     app.state.settings = settings
     app.state.bot = bot
     app.state.claude_client = claude_client
+    app.state.transcriber = transcriber
 
-    logger.info("app_started", app_env=settings.app_env)
+    logger.info("app_started", app_env=settings.app_env, voice_enabled=transcriber is not None)
     try:
         yield
     finally:
         await bot.session.close()
         await claude_client.aclose()
+        if transcriber is not None:
+            await transcriber.aclose()
         await dispose_engine()
         logger.info("app_stopped")
 

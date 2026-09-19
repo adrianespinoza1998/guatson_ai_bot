@@ -50,6 +50,14 @@ class Settings(BaseSettings):
     webhook_max_body_bytes: int = 1 * 1024 * 1024
     artifact_max_code_bytes: int = 200 * 1024
 
+    # Voice-note transcription (see docs/specs/audio-transcription.md). Unlike the
+    # other external-service keys, this one is optional: the bot is fully usable for
+    # text without it, so a missing key must not block startup — only voice notes.
+    openai_api_key: str | None = None
+    openai_transcription_model: str = "whisper-1"
+    voice_max_duration_seconds: int = 120
+    voice_max_file_bytes: int = 20 * 1024 * 1024
+
 
 @lru_cache
 def get_settings() -> Settings:
