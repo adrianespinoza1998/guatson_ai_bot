@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: guatson
+          POSTGRES_PASSWORD: guatson
+          POSTGRES_DB: guatson
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U guatson -d guatson"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://guatson:guatson@localhost:5432/guatson
+      APP_ENV: local
+      TELEGRAM_BOT_TOKEN: "123456789:AAFakeTokenForCiOnlyNotARealBotToken1234"
+      TELEGRAM_WEBHOOK_SECRET: ci-webhook-secret
+      TELEGRAM_ALLOWED_USER_IDS: "1"
+      PUBLIC_BASE_URL: https://ci.invalid
+      ANTHROPIC_API_KEY: sk-ant-ci-fake-key
+      CLAUDE_MODEL: claude-sonnet-5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.12.17"
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: ruff check
+        run: uv run ruff check .
+
+      - name: ruff format --check
+        run: uv run ruff format --check .
+
+      - name: mypy
+        run: uv run mypy src
+
+      - name: Apply migrations
+        run: uv run alembic upgrade head
+
+      - name: pytest
+        run: uv run pytest
+
+      - name: Docker build (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: guatson-bot-ai:ci

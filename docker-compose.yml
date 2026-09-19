@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: guatson
+      POSTGRES_PASSWORD: guatson
+      POSTGRES_DB: guatson
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U guatson -d guatson"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Webhook mode: what runs in staging/production. Locally it just serves
+  # /webhook/telegram and /health*; nothing calls it unless you point a real webhook
+  # at it (e.g. via a tunnel), so it coexists fine with `bot-polling` below.
+  app:
+    build: .
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://guatson:guatson@db:5432/guatson
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./src:/app/src
+      - ./migrations:/app/migrations
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Development mode: long-polling, no public URL required. Start with
+  # `docker compose --profile polling up`.
+  bot-polling:
+    build: .
+    profiles: ["polling"]
+    command: sh -c "alembic upgrade head && python scripts/run_polling.py"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://guatson:guatson@db:5432/guatson
+    volumes:
+      - ./src:/app/src
+      - ./migrations:/app/migrations
+      - ./scripts:/app/scripts
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:

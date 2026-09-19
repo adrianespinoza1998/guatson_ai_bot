@@ -1,0 +1,115 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy-staging:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: staging
+    concurrency: deploy-staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.12.17"
+          enable-cache: true
+
+      - name: Install flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Fly.io (staging)
+        run: >-
+          flyctl deploy --remote-only
+          --config fly.staging.toml
+          --image-label ${{ github.event.workflow_run.head_sha }}
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Smoke test /health/ready
+        run: |
+          for attempt in $(seq 1 10); do
+            if curl --fail --silent --show-error "$STAGING_HEALTH_URL"; then
+              exit 0
+            fi
+            echo "Attempt $attempt failed, retrying in 5s..."
+            sleep 5
+          done
+          echo "Staging never became ready" >&2
+          exit 1
+        env:
+          STAGING_HEALTH_URL: ${{ vars.STAGING_BASE_URL }}/health/ready
+
+      - name: Register Telegram webhook (staging)
+        run: uv run python scripts/set_webhook.py
+        env:
+          APP_ENV: staging
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
+          TELEGRAM_ALLOWED_USER_IDS: ${{ secrets.TELEGRAM_ALLOWED_USER_IDS }}
+          PUBLIC_BASE_URL: ${{ vars.STAGING_BASE_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  # The `production` GitHub Environment should be configured with required reviewers
+  # (Settings → Environments → production → Deployment protection rules) so this job
+  # pauses for manual approval before it runs.
+  deploy-production:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency: deploy-production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.12.17"
+          enable-cache: true
+
+      - name: Install flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Fly.io (production)
+        run: >-
+          flyctl deploy --remote-only
+          --config fly.production.toml
+          --image-label ${{ github.event.workflow_run.head_sha }}
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Smoke test /health/ready
+        run: |
+          for attempt in $(seq 1 10); do
+            if curl --fail --silent --show-error "$PRODUCTION_HEALTH_URL"; then
+              exit 0
+            fi
+            echo "Attempt $attempt failed, retrying in 5s..."
+            sleep 5
+          done
+          echo "Production never became ready" >&2
+          exit 1
+        env:
+          PRODUCTION_HEALTH_URL: ${{ vars.PRODUCTION_BASE_URL }}/health/ready
+
+      - name: Register Telegram webhook (production)
+        run: uv run python scripts/set_webhook.py
+        env:
+          APP_ENV: production
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
+          TELEGRAM_ALLOWED_USER_IDS: ${{ secrets.TELEGRAM_ALLOWED_USER_IDS }}
+          PUBLIC_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
