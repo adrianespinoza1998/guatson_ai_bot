@@ -2,6 +2,11 @@
 
 Registro de decisiones tomadas por ambigüedad o contradicción en `SPEC.md`, en orden cronológico. Regla general aplicada: ante la duda, la opción más simple que cumple el criterio de aceptación.
 
+## Dashboard: formularios simples en vez de HTMX
+
+- `docs/specs/dashboard.md` proponía Jinja2 + HTMX para las acciones de completar/cancelar tarea sin recargar la página. Al implementar, se optó por `<form method="post">` planas con redirect 303 de vuelta a `/tasks` — logran exactamente lo mismo (administrar una tarea) sin sumar un archivo estático que vendorizar ni una dependencia de JS en absoluto. Para un dashboard personal, una recarga de página al completar una tarea no es un costo real; sí lo es mantener un `htmx.min.js` vendorizado. Si en el futuro se necesita interactividad más fina (edición inline, filtros sin recarga), ahí sí vale la pena sumar HTMX.
+- El selector de chat (`chat_ids`) se calcula sobre `messages.chat_id` (no hay tabla de usuarios), tal como decía la spec. Esto significa que un chat que solo tuviera tareas/artefactos pero cero mensajes no aparecería en el selector — no ocurre en la práctica porque el agente siempre responde a un mensaje antes de poder llamar a `create_task`/`save_artifact`, pero quedó como suposición explícita al escribir los tests (`tests/test_dashboard.py::_seed_chat`).
+
 ## Transcripción de notas de voz (OpenAI)
 
 - Implementada según `docs/specs/audio-transcription.md`. La única desviación notable del resto de `Settings` (donde todo es obligatorio): `openai_api_key` es `str | None = None`. Es deliberado — a diferencia de `anthropic_api_key`/`telegram_bot_token`/etc., sin los cuales el bot entero no tiene sentido, `OPENAI_API_KEY` protege una sola feature opcional; exigirla forzaría a cualquier instalación que no quiera transcripción de voz a configurar una key que no va a usar.

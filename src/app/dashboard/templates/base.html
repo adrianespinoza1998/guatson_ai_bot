@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Dashboard{% endblock %} · guatson-bot-ai</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
+  nav a { margin-right: 1rem; text-decoration: none; color: #2952cc; }
+  nav a:hover { text-decoration: underline; }
+  table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+  th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #ddd; vertical-align: top; }
+  form.inline { display: inline; margin-right: 0.3rem; }
+  form.chat-select { margin: 1rem 0; }
+  .status-open { color: #b8860b; }
+  .status-done { color: #2e7d32; }
+  .status-cancelled { color: #888; }
+  pre { white-space: pre-wrap; margin: 0; font-size: 0.85rem; }
+  button { cursor: pointer; }
+</style>
+</head>
+<body>
+<nav>
+  <a href="/">Resumen</a>
+  <a href="/tasks">Tareas</a>
+  <a href="/artifacts">Artefactos</a>
+  <a href="/usage">Uso</a>
+  <a href="/history">Historial</a>
+</nav>
+<hr>
+{% if chat_ids %}
+<form class="chat-select" method="get" action="{{ request.url.path }}">
+  <label>Chat:
+    <select name="chat_id" onchange="this.form.submit()">
+      {% for cid in chat_ids %}
+      <option value="{{ cid }}" {% if cid == selected_chat_id %}selected{% endif %}>{{ cid }}</option>
+      {% endfor %}
+    </select>
+  </label>
+</form>
+{% else %}
+<p>Todavía no hay ningún chat con mensajes.</p>
+{% endif %}
+{% block content %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Versiones de {{ name }}{% endblock %}
+{% block content %}
+<h1>Versiones de <code>{{ name }}</code></h1>
+<p><a href="/artifacts?chat_id={{ chat_id }}">&larr; volver a artefactos</a></p>
+<table>
+<tr><th>Versión</th><th>Creada</th><th></th></tr>
+{% for v in versions %}
+<tr>
+  <td>{{ v.version }}</td>
+  <td>{{ v.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+  <td><a href="/artifacts/{{ name }}/versions/{{ v.version }}/download?chat_id={{ chat_id }}">Descargar</a></td>
+</tr>
+{% else %}
+<tr><td colspan="3">Sin versiones.</td></tr>
+{% endfor %}
+</table>
+{% endblock %}

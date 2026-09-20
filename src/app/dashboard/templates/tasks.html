@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Tareas{% endblock %}
+{% block content %}
+<h1>Tareas</h1>
+{% if selected_chat_id is not none %}
+<form method="get" action="/tasks">
+  <input type="hidden" name="chat_id" value="{{ selected_chat_id }}">
+  <label>Estado:
+    <select name="status" onchange="this.form.submit()">
+      <option value="" {% if not status_filter %}selected{% endif %}>todas</option>
+      {% for s in statuses %}
+      <option value="{{ s }}" {% if s == status_filter %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </label>
+</form>
+
+<table>
+<tr><th>Título</th><th>Descripción</th><th>Vence</th><th>Tags</th><th>Estado</th><th>Acciones</th></tr>
+{% for t in tasks %}
+<tr>
+  <td>{{ t.title }}</td>
+  <td>{{ t.description or "" }}</td>
+  <td>{{ t.due_at.strftime("%Y-%m-%d %H:%M") if t.due_at else "" }}</td>
+  <td>{{ t.tags|join(", ") }}</td>
+  <td class="status-{{ t.status }}">{{ t.status }}</td>
+  <td>
+    {% if t.status != "done" %}
+    <form class="inline" method="post" action="/tasks/{{ t.id }}/complete?chat_id={{ selected_chat_id }}">
+      <button type="submit">Completar</button>
+    </form>
+    {% endif %}
+    {% if t.status != "cancelled" %}
+    <form class="inline" method="post" action="/tasks/{{ t.id }}/cancel?chat_id={{ selected_chat_id }}">
+      <button type="submit">Cancelar</button>
+    </form>
+    {% endif %}
+  </td>
+</tr>
+{% else %}
+<tr><td colspan="6">Sin tareas.</td></tr>
+{% endfor %}
+</table>
+{% endif %}
+{% endblock %}

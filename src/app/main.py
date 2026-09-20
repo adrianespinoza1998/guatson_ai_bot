@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.config import get_settings
+from app.dashboard.routes import router as dashboard_router
 from app.db import dispose_engine, get_engine
 from app.llm.client import ClaudeClient
 from app.logging import configure_logging, get_logger
@@ -81,6 +82,7 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     app.include_router(webhook_router)
+    app.include_router(dashboard_router)
     return app
 
 

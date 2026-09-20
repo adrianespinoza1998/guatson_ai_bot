@@ -84,3 +84,20 @@ async def list_artifacts(session: AsyncSession, *, chat_id: int, limit: int = 20
     )
     result = await session.execute(stmt)
     return list(result.scalars().all())
+
+
+async def list_versions(session: AsyncSession, *, chat_id: int, name: str) -> list[ArtifactVersion]:
+    """All versions of one artifact, newest first. Empty if the artifact doesn't exist
+    (or belongs to a different chat) — used by the dashboard, where a bad `name` in the
+    URL should just render an empty table, not raise.
+    """
+    artifact = await get_artifact_by_name(session, chat_id=chat_id, name=name)
+    if artifact is None:
+        return []
+    stmt = (
+        select(ArtifactVersion)
+        .where(ArtifactVersion.artifact_id == artifact.id)
+        .order_by(ArtifactVersion.version.desc())
+    )
+    result = await session.execute(stmt)
+    return list(result.scalars().all())

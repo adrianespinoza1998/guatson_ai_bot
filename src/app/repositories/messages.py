@@ -7,10 +7,12 @@ conversation can always be reconstructed.
 
 from __future__ import annotations
 
+import datetime as dt
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Any, TypedDict
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -112,6 +114,60 @@ async def get_recent_messages(session: AsyncSession, *, chat_id: int, limit: int
     rows = list(result.scalars().all())
     rows.reverse()
     return rows
+
+
+async def list_chat_ids(session: AsyncSession) -> list[int]:
+    """Every chat_id that has at least one message — powers the dashboard's chat
+    selector (see docs/specs/dashboard.md). There's no users table, so this is the
+    only source of "which chats exist".
+    """
+    stmt = select(Message.chat_id).distinct().order_by(Message.chat_id)
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+@dataclass
+class DailyUsage:
+    day: dt.date
+    input_tokens: int
+    output_tokens: int
+    cache_read_tokens: int
+    cache_write_tokens: int
+
+
+async def get_daily_usage(session: AsyncSession, *, chat_id: int, days: int) -> list[DailyUsage]:
+    """Token usage summed per day over the last `days` days, oldest first. Only
+    assistant messages carry usage; a day with no assistant turns is simply absent.
+    """
+    since = dt.datetime.now(dt.UTC) - dt.timedelta(days=days)
+    day_col = func.date_trunc("day", Message.created_at).label("day")
+    stmt = (
+        select(
+            day_col,
+            func.coalesce(func.sum(Message.input_tokens), 0),
+            func.coalesce(func.sum(Message.output_tokens), 0),
+            func.coalesce(func.sum(Message.cache_read_tokens), 0),
+            func.coalesce(func.sum(Message.cache_write_tokens), 0),
+        )
+        .where(
+            Message.chat_id == chat_id,
+            Message.role == "assistant",
+            Message.created_at >= since,
+        )
+        .group_by(day_col)
+        .order_by(day_col)
+    )
+    result = await session.execute(stmt)
+    return [
+        DailyUsage(
+            day=row[0].date(),
+            input_tokens=row[1],
+            output_tokens=row[2],
+            cache_read_tokens=row[3],
+            cache_write_tokens=row[4],
+        )
+        for row in result.all()
+    ]
 
 
 def _is_user_text_message(entry: HistoryMessage) -> bool:

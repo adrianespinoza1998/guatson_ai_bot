@@ -62,6 +62,15 @@ async def search_tasks(
     return list(result.scalars().all())
 
 
+async def count_tasks_by_status(session: AsyncSession, *, chat_id: int) -> dict[str, int]:
+    stmt = select(Task.status, func.count()).where(Task.chat_id == chat_id).group_by(Task.status)
+    result = await session.execute(stmt)
+    counts = {"open": 0, "done": 0, "cancelled": 0}
+    for status_value, count in result.all():
+        counts[status_value] = count
+    return counts
+
+
 async def get_task(session: AsyncSession, *, chat_id: int, task_id: int) -> Task | None:
     stmt = select(Task).where(Task.chat_id == chat_id, Task.id == task_id)
     result = await session.execute(stmt)

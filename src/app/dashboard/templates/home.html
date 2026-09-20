@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Resumen{% endblock %}
+{% block content %}
+<h1>Resumen</h1>
+{% if selected_chat_id is not none %}
+<h2>Tareas — chat {{ selected_chat_id }}</h2>
+<ul>
+  <li class="status-open">Abiertas: {{ task_counts.open }}</li>
+  <li class="status-done">Hechas: {{ task_counts.done }}</li>
+  <li class="status-cancelled">Canceladas: {{ task_counts.cancelled }}</li>
+</ul>
+
+<h2>Últimos mensajes</h2>
+<table>
+<tr><th>Fecha</th><th>Rol</th><th>Contenido</th></tr>
+{% for m in recent_messages %}
+<tr>
+  <td>{{ m.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+  <td>{{ m.role }}</td>
+  <td><pre>{{ m.text }}</pre></td>
+</tr>
+{% else %}
+<tr><td colspan="3">Sin mensajes todavía.</td></tr>
+{% endfor %}
+</table>
+{% endif %}
+{% endblock %}

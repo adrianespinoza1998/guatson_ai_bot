@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Uso{% endblock %}
+{% block content %}
+<h1>Uso de tokens (últimos {{ days }} días)</h1>
+{% if selected_chat_id is not none %}
+<table>
+<tr><th>Día</th><th>Input</th><th>Output</th><th>Cache read</th><th>Cache write</th></tr>
+{% for row in usage_rows %}
+<tr>
+  <td>{{ row.day }}</td>
+  <td>{{ row.input_tokens }}</td>
+  <td>{{ row.output_tokens }}</td>
+  <td>{{ row.cache_read_tokens }}</td>
+  <td>{{ row.cache_write_tokens }}</td>
+</tr>
+{% else %}
+<tr><td colspan="5">Sin uso registrado en este período.</td></tr>
+{% endfor %}
+</table>
+{% endif %}
+{% endblock %}

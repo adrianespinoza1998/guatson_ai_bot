@@ -58,6 +58,11 @@ class Settings(BaseSettings):
     voice_max_duration_seconds: int = 120
     voice_max_file_bytes: int = 20 * 1024 * 1024
 
+    # Web dashboard (see docs/specs/dashboard.md). Also optional: without a password
+    # set, the dashboard routes don't exist (404), so it's opt-in per install.
+    dashboard_password: str | None = None
+    dashboard_usage_days: int = 30
+
 
 @lru_cache
 def get_settings() -> Settings:
